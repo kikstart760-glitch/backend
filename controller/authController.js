@@ -3,6 +3,13 @@ const {middleware, generateToken} = require('../Middleware/Middleware');
 const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
 const nodemailer = require('nodemailer')
+const { sendEmail } = require('../utils/mail.helper');
+const {registerSuccessTemplate} = require('../templates/emailTemplate');
+const {registerOtpTemplate} = require('../templates/emailTemplate');
+const {loginOtpTemplate} = require('../templates/emailTemplate');
+const {forgotPasswordOtpTemplate} = require('../templates/emailTemplate');
+const {resetPasswordTemplate} = require('../templates/emailTemplate');
+const { passwordChangedTemplate } = require('../templates/emailTemplate');
 
 exports.signUp = async (req, res, next) => {
     try {
@@ -29,6 +36,12 @@ exports.signUp = async (req, res, next) => {
         
         const salt = await bcrypt.genSalt(10)
         const hashpassword = await bcrypt.hash(password, salt);
+
+        await sendEmail({
+          to: email,
+          subject: "Welcome to KikStart! 🎉",
+          html: registerSuccessTemplate(name),
+        });
 
         const userData = new user({name, email, phone, location, passcode, password:hashpassword });
         await userData.save();
