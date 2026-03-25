@@ -127,6 +127,34 @@ export const loginOtpTemplate = (name, otp) =>
     <p class="text">If not you, secure your account immediately.</p>
   `);
 
+// Login Success
+export const loginSuccessTemplate = (
+  name,
+  date,
+  location,
+  device,
+  resetLink
+) =>
+  baseTemplate(`
+    <div class="title">Login Successful, ${name} ✅</div>
+    <p class="text">
+      Hi ${name}, you have successfully logged into your KikStart account.
+    </p>
+    <p class="text">
+      If this was you, you can safely continue using our platform and explore all features 🚀
+    </p>
+    <p class="text">
+      <strong>Login Details:</strong><br/>
+      📅 Date: ${date}<br/>
+      🌍 Location: ${location}<br/>
+      📱 Device: ${device}
+    </p>
+    <p class="text">
+      If this wasn't you, please secure your account immediately by resetting your password.
+    </p>
+    <a href="${resetLink}" class="btn">Secure My Account</a>
+  `);
+  
 // Forgot Password OTP
 export const forgotPasswordOtpTemplate = (name, otp) =>
   baseTemplate(`
