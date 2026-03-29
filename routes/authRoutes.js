@@ -1,17 +1,22 @@
 const express = require("express");
 const authController = require("../controller/authController");
+const { otpLimiter } = require("../Middleware/rateLimiter");
 
 const router = express.Router();
 
-router.post("/sign-up", authController.signUp);
-router.post("/signup-otp", authController.verifySignupOTP);
-router.post("/login", authController.login);
-router.post("/login-otp", authController.verifyLoginOTP);
-router.post("/forgot-password", authController.forgetPassword);
-router.post("/reset-password", authController.resetPassword);
-router.post("/verify-otp", authController.verifyOtp);
-router.post("/resend-otp", authController.resendOtp);
+// Auth routes
+router.post("/sign-up", otpLimiter, authController.signUp);
+router.post("/login", otpLimiter, authController.login);
+router.post("/forgot-password", otpLimiter, authController.forgetPassword);
+router.post("/resend-otp", otpLimiter, authController.resendOtp);
 
+// OTP verification routes
+router.post("/signup-otp", authController.verifySignupOTP);
+router.post("/login-otp", authController.verifyLoginOTP);
+router.post("/verify-otp", authController.verifyOtp);
+
+// Password reset route
+router.post("/reset-password", authController.resetPassword);
 
 
 module.exports = router;

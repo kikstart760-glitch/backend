@@ -170,22 +170,12 @@ exports.verifySignupOTP = async (req, res, next) => {
     }
 
     try {
-      checkOtpBlock(checkexist);
+      await checkOtpBlock(checkexist);
     } catch (err) {
       return next(
         res.status(429).json({
           status: "fail",
           message: err.message,
-        })
-      );
-    }
-
-    const isOtpValid = await compareOtp(otp, checkexist.otp);
-    if (!isOtpValid) {
-      return next(
-        res.status(400).json({
-          status: "fail",
-          message: "Invalid OTP provided"
         })
       );
     }
@@ -199,14 +189,21 @@ exports.verifySignupOTP = async (req, res, next) => {
       );
     }
 
+    const isOtpValid = await compareOtp(otp, checkexist.otp);
     if (!isOtpValid) {
       checkexist.otpAttempts += 1;
       if (checkexist.otpAttempts >= 5) {
         checkexist.otpBlockedUntil = Date.now() + 30 * 60 * 1000; // Block for 30 minutes
         checkexist.otpAttempts = 0; // Reset attempts after blocking
       }
+      await checkexist.save();
+      return next(
+        res.status(401).json({
+          status: "fail",
+          message: "Invalid OTP provided or wrong OTP entered multiple times. Please try again later."
+        })
+      );
     }
-    await checkexist.save();
 
     checkexist.isverified = true;
     checkexist.otp = null;
@@ -392,22 +389,12 @@ exports.verifyLoginOTP = async (req, res, next) => {
     }
 
     try {
-      checkOtpBlock(checkexist);
+      await checkOtpBlock(checkexist);
     } catch (err) {
       return next(
         res.status(429).json({
           status: "fail",
           message: err.message,
-        })
-      );
-    }
-
-    const isOtpValid = await compareOtp(otp, checkexist.otp);
-    if (!isOtpValid) {
-      return next(
-        res.status(401).json({
-          status: "fail",
-          message: "Invalid OTP provided"
         })
       );
     }
@@ -421,14 +408,21 @@ exports.verifyLoginOTP = async (req, res, next) => {
       );
     }
 
+    const isOtpValid = await compareOtp(otp, checkexist.otp);
     if (!isOtpValid) {
       checkexist.otpAttempts += 1;
       if (checkexist.otpAttempts >= 5) {
-        checkexist.otpBlockedUntil = Date.now() + 30 * 60 * 1000;
+        checkexist.otpBlockedUntil = Date.now() + 30 * 60 * 1000; // Block for 30 minutes
         checkexist.otpAttempts = 0; // Reset attempts after blocking
       }
+      await checkexist.save();
+      return next(
+        res.status(401).json({
+          status: "fail",
+          message: "Invalid OTP provided or wrong OTP entered multiple times. Please try again later."
+        })
+      );
     }
-    await checkexist.save();
 
 
     checkexist.otp = null;
@@ -602,7 +596,7 @@ exports.verifyOtp = async (req, res, next) => {
     }
 
     try {
-      checkOtpBlock(checkexist);
+      await checkOtpBlock(checkexist);
     } catch (err) {
       return next(
         res.status(429).json({
@@ -612,33 +606,30 @@ exports.verifyOtp = async (req, res, next) => {
       );
     }
 
-    const isOtpValid = await compareOtp(otp, checkexist.otp);
-    if (!isOtpValid) {
-      return next(
-        res.status(401).json({
-          status: "fail",
-          message: "Invalid OTP"
-        })
-      );
-    }
-
     if (checkexist.otpExpiry < Date.now()) {
       return next(
         res.status(410).json({
           status: "fail",
-          message: "OTP has expired"
+          message: "OTP has expired. Please request a new one."
         })
       );
     }
 
+    const isOtpValid = await compareOtp(otp, checkexist.otp);
     if (!isOtpValid) {
       checkexist.otpAttempts += 1;
       if (checkexist.otpAttempts >= 5) {
-        checkexist.otpBlockedUntil = Date.now() + 30 * 60 * 1000;
+        checkexist.otpBlockedUntil = Date.now() + 30 * 60 * 1000; // Block for 30 minutes
         checkexist.otpAttempts = 0; // Reset attempts after blocking
       }
+      await checkexist.save();
+      return next(
+        res.status(401).json({
+          status: "fail",
+          message: "Invalid OTP provided or wrong OTP entered multiple times. Please try again later."
+        })
+      );
     }
-    await checkexist.save();
 
     checkexist.otp = null;
     checkexist.otpExpiry = null;
