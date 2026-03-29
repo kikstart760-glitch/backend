@@ -665,15 +665,24 @@ exports.verifyOtp = async (req, res, next) => {
 
 exports.resetPassword = async (req, res, next) => {
   try {
-    const { email, phone, password } = req.body;
-    if ((!email && !phone) || !password) {
+    const { email, phone, password, confirmPassword } = req.body;
+    if ((!email && !phone) || !password || !confirmPassword) {
       return next(
         res.status(400).json({
           status: "fail",
-          message: "Please provide email or phone and password!!!",
+          message: "Please provide email or phone and password and confirm password!!!",
         })
       );
     }
+
+    if (password !== confirmPassword) {
+      return next(
+        res.status(400).json({
+          status: "fail",
+          message: "Password and confirm password do not match. Please provide matching passwords.",
+        })
+      );
+    } 
 
     const formattedPhone = null;
     if (phone) {
@@ -701,7 +710,7 @@ exports.resetPassword = async (req, res, next) => {
       return (
         res.status(409).json({
           status: "fail",
-          message: "Password used once",
+          message: "Password already used. Try a new one.",
         })
       );
     }
