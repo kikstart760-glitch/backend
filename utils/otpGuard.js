@@ -1,10 +1,10 @@
-exports.checkOtpBlock = async (user) => {
+const checkOtpBlock = async (user) => {
 
-  // 🔓 AUTO UNBLOCK (VERY IMPORTANT)
+  // 🔓 AUTO UNBLOCK
   if (user.otpBlockedUntil && user.otpBlockedUntil < Date.now()) {
     user.otpBlockedUntil = null;
     user.otpAttempts = 0;
-    await user.save(); // save reset
+    await user.save();
   }
 
   // 🚫 STILL BLOCKED
@@ -16,3 +16,5 @@ exports.checkOtpBlock = async (user) => {
     throw new Error(`Too many attempts. Try again in ${seconds}s`);
   }
 };
+
+module.exports = { checkOtpBlock };

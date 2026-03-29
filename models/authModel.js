@@ -68,8 +68,8 @@ const authSchema = new mongoose.Schema(
         default: 0 
     },
     lockUntil: {
-        Date, 
-        default: null 
+        type: Date,
+        default: null
     },
     role: {
         type: String,

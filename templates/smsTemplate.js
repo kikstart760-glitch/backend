@@ -1,4 +1,4 @@
-exports.otpSMS = ({ otp, type, appName = "KikStart", expiry = 5 }) => {
+const otpSMS = ({ otp, type, appName = "KikStart", expiry = 5 }) => {
   const brand = `[${appName}]`;
 
   switch (type) {
@@ -18,3 +18,5 @@ exports.otpSMS = ({ otp, type, appName = "KikStart", expiry = 5 }) => {
       return `${brand} Your OTP is ${otp}. Valid for ${expiry} minutes. Do not share this code.`;
   }
 };
+
+module.exports = { otpSMS };

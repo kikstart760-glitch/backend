@@ -5,7 +5,7 @@ const client = twilio(
   process.env.TWILIO_AUTH_TOKEN
 );
 
-exports.sendSMS = async ({ to, message }) => {
+const sendSMS = async ({ to, message }) => {
   try {
     const res = await client.messages.create({
       body: message,
@@ -19,3 +19,5 @@ exports.sendSMS = async ({ to, message }) => {
     throw err;
   }
 };
+
+module.exports = { sendSMS };

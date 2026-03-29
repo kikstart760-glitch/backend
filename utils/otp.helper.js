@@ -1,16 +1,22 @@
 const bcrypt = require("bcryptjs");
 
 // generate 6 digit OTP
-exports.generateOtp = () => {
+const generateOtp = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
 // hash OTP
-exports.hashOtp = async (otp) => {
+const hashOtp = async (otp) => {
   return await bcrypt.hash(otp, 10);
 };
 
 // compare OTP
-exports.compareOtp = async (otp, hashedOtp) => {
+const compareOtp = async (otp, hashedOtp) => {
   return await bcrypt.compare(otp, hashedOtp);
+};
+
+module.exports = {
+  generateOtp,
+  hashOtp,
+  compareOtp
 };

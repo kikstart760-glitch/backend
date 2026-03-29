@@ -2,7 +2,7 @@ const UAParser = require("ua-parser-js");
 const axios = require("axios");
 
 // Get Device Info
-exports.getDevice = (req) => {
+const getDevice = (req) => {
   try {
     const parser = new UAParser(req.headers["user-agent"]);
     const result = parser.getResult();
@@ -16,7 +16,7 @@ exports.getDevice = (req) => {
 };
 
 // Get IP Address
-exports.getIP = (req) => {
+const getIP = (req) => {
   return (
     req.headers["x-forwarded-for"] ||
     req.socket.remoteAddress ||
@@ -25,7 +25,7 @@ exports.getIP = (req) => {
 };
 
 // Get Location from IP
-exports.getLocation = async (ip) => {
+const getLocation = async (ip) => {
   try {
     const res = await axios.get(`http://ip-api.com/json/${ip}`);
     return `${res.data.city || ""}, ${res.data.country || ""}`;
@@ -33,3 +33,5 @@ exports.getLocation = async (ip) => {
     return "Unknown Location";
   }
 };
+
+module.exports = { getDevice, getIP, getLocation };

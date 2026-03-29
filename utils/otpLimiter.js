@@ -1,4 +1,4 @@
-exports.applyOtpSecurity = (user, limit = 5) => {
+const applyOtpSecurity = (user, limit = 5) => {
   const now = new Date();
 
   const isSameDay =
@@ -22,7 +22,9 @@ exports.applyOtpSecurity = (user, limit = 5) => {
     throw new Error(`Wait ${seconds}s before retry`);
   }
 
-  // ✅ UPDATE STATE HERE (IMPORTANT)
+  // ✅ UPDATE STATE
   user.otpRequestCount += 1;
   user.otpCooldown = Date.now() + 60 * 1000;
 };
+
+module.exports = { applyOtpSecurity };

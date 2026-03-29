@@ -101,7 +101,7 @@ const baseTemplate = (content) => `
 // ================= AUTH EMAILS =================
 
 // Register Success
-export const registerSuccessTemplate = (name) =>
+const registerSuccessTemplate = (name) =>
   baseTemplate(`
     <div class="title">Welcome to KikStart, ${name} 🎉</div>
     <p class="text">Your account has been successfully created.</p>
@@ -110,7 +110,7 @@ export const registerSuccessTemplate = (name) =>
   `);
 
 // Register OTP
-export const registerOtpTemplate = (name, otp) =>
+const registerOtpTemplate = (name, otp) =>
   baseTemplate(`
     <div class="title">Verify Your Account</div>
     <p class="text">Hi ${name}, use the OTP below:</p>
@@ -119,7 +119,7 @@ export const registerOtpTemplate = (name, otp) =>
   `);
 
 // Login OTP
-export const loginOtpTemplate = (name, otp) =>
+const loginOtpTemplate = (name, otp) =>
   baseTemplate(`
     <div class="title">Login Verification</div>
     <p class="text">Hello ${name}, your login OTP:</p>
@@ -128,7 +128,7 @@ export const loginOtpTemplate = (name, otp) =>
   `);
 
 // Login Success
-export const loginSuccessTemplate = (
+const loginSuccessTemplate = (
   name,
   date,
   location,
@@ -156,7 +156,7 @@ export const loginSuccessTemplate = (
   `);
   
 // Forgot Password OTP
-export const forgotPasswordOtpTemplate = (name, otp) =>
+const forgotPasswordOtpTemplate = (name, otp) =>
   baseTemplate(`
     <div class="title">Password Reset OTP</div>
     <p class="text">Hello ${name}, your OTP:</p>
@@ -165,7 +165,7 @@ export const forgotPasswordOtpTemplate = (name, otp) =>
   `);
 
 // Reset Password Link
-export const resetPasswordTemplate = (name, link) =>
+const resetPasswordTemplate = (name, link) =>
   baseTemplate(`
     <div class="title">Reset Your Password</div>
     <p class="text">Hi ${name}, click below:</p>
@@ -174,7 +174,7 @@ export const resetPasswordTemplate = (name, link) =>
   `);
 
 // Password Changed
-export const passwordChangedTemplate = (name) =>
+const passwordChangedTemplate = (name) =>
   baseTemplate(`
     <div class="title">Password Changed Successfully</div>
     <p class="text">Hi ${name}, your password was updated.</p>
@@ -182,7 +182,7 @@ export const passwordChangedTemplate = (name) =>
     <a href="mailto:support@kikstart.com" class="btn">Contact Support</a>
   `);
 // Resend OTP
-export const resendOtpTemplate = (name, otp) =>
+const resendOtpTemplate = (name, otp) =>
   baseTemplate(`
     <div class="title">OTP Resent Successfully 🔄</div>
     <p class="text">
@@ -196,3 +196,14 @@ export const resendOtpTemplate = (name, otp) =>
       If you did not request this, please ignore this email or secure your account immediately.
     </p>
   `);
+
+module.exports = {
+  registerSuccessTemplate,
+  registerOtpTemplate,
+  loginOtpTemplate,
+  loginSuccessTemplate,
+  forgotPasswordOtpTemplate,
+  resetPasswordTemplate,
+  passwordChangedTemplate,
+  resendOtpTemplate,
+};
