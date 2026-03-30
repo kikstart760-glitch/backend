@@ -2,99 +2,67 @@
 const baseTemplate = (content) => `
 <!DOCTYPE html>
 <html>
-<head>
-<meta charset="UTF-8">
-<style>
-  body {
-    margin: 0;
-    padding: 0;
-    background-color: #f4f6f8;
-    font-family: Arial, sans-serif;
-  }
+<body style="margin:0; padding:0; background-color:#f4f6f8; font-family:Arial, sans-serif;">
 
-  .container {
-    max-width: 600px;
-    margin: 20px auto;
-    background: #ffffff;
-    border-radius: 10px;
-    overflow: hidden;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.08);
-  }
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f8; padding:20px 0;">
+    <tr>
+      <td align="center">
 
-  .header {
-    background: linear-gradient(135deg, #ff416c, #ff4b2b);
-    text-align: center;
-    padding: 20px;
-  }
+        <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff; border-radius:8px; overflow:hidden;">
+          
+          <!-- HEADER -->
+          <tr>
+            <td align="center" style="background:#ff416c; padding:20px;">
+              <img src="cid:logo" width="120" style="display:block;" />
+            </td>
+          </tr>
 
-  .header img {
-    width: 120px;
-  }
+          <!-- CONTENT -->
+          <tr>
+            <td style="padding:30px; color:#333;">
+              ${content}
+            </td>
+          </tr>
 
-  .content {
-    padding: 30px;
-    color: #333;
-  }
+          <!-- FOOTER -->
+          <tr>
+            <td align="center" style="font-size:12px; color:#888; padding:20px; background:#fafafa;">
+              Need help? support@kikstart.com
+            </td>
+          </tr>
 
-  .title {
-    font-size: 22px;
-    font-weight: bold;
-    margin-bottom: 10px;
-  }
+        </table>
 
-  .text {
-    font-size: 14px;
-    line-height: 1.6;
-    margin-bottom: 20px;
-  }
+      </td>
+    </tr>
+  </table>
 
-  .otp {
-    font-size: 28px;
-    letter-spacing: 8px;
-    text-align: center;
-    background: #f1f3f6;
-    padding: 15px;
-    border-radius: 8px;
-    margin: 20px 0;
-    font-weight: bold;
-  }
-
-  .btn {
-    display: inline-block;
-    padding: 12px 25px;
-    background: #ff416c;
-    color: #fff !important;
-    text-decoration: none;
-    border-radius: 6px;
-    font-size: 14px;
-  }
-
-  .footer {
-    text-align: center;
-    font-size: 12px;
-    color: #888;
-    padding: 20px;
-    background: #fafafa;
-  }
-</style>
-</head>
-
-<body>
-  <div class="container">
-    <div class="header">
-      <img src="cid:logo" />
-    </div>
-
-    <div class="content">
-      ${content}
-    </div>
-
-    <div class="footer">
-      Need help? support@kikstart.com
-    </div>
-  </div>
 </body>
 </html>
+`;
+
+
+// ================= COMMON STYLES =================
+const titleStyle = "font-size:22px; font-weight:bold; margin-bottom:10px;";
+const textStyle = "font-size:14px; line-height:1.6; margin-bottom:15px;";
+const otpStyle = `
+  font-size:28px;
+  letter-spacing:8px;
+  text-align:center;
+  background:#f1f3f6;
+  padding:15px;
+  border-radius:6px;
+  margin:20px 0;
+  font-weight:bold;
+`;
+const btnStyle = `
+  display:inline-block;
+  padding:12px 25px;
+  background:#ff416c;
+  color:#ffffff;
+  text-decoration:none;
+  border-radius:5px;
+  font-size:14px;
 `;
 
 
@@ -103,100 +71,104 @@ const baseTemplate = (content) => `
 // Register Success
 const registerSuccessTemplate = (name) =>
   baseTemplate(`
-    <div class="title">Welcome to KikStart, ${name} 🎉</div>
-    <p class="text">Your account has been successfully created.</p>
-    <p class="text">Start exploring and enjoy 🚀</p>
-    <a href="#" class="btn">Get Started</a>
+    <div style="${titleStyle}">Welcome to KikStart, ${name} 🎉</div>
+    <p style="${textStyle}">Your account has been successfully created.</p>
+    <p style="${textStyle}">Start exploring and enjoy 🚀</p>
+    <a href="#" style="${btnStyle}">Get Started</a>
   `);
 
 // Register OTP
 const registerOtpTemplate = (name, otp) =>
   baseTemplate(`
-    <div class="title">Verify Your Account</div>
-    <p class="text">Hi ${name}, use the OTP below:</p>
-    <div class="otp">${otp}</div>
-    <p class="text">Valid for 10 minutes. Do not share.</p>
+    <div style="${titleStyle}">Verify Your Account</div>
+    <p style="${textStyle}">Hi ${name}, use the OTP below:</p>
+    <div style="${otpStyle}">${otp}</div>
+    <p style="${textStyle}">Valid for 10 minutes. Do not share.</p>
   `);
 
 // Login OTP
 const loginOtpTemplate = (name, otp) =>
   baseTemplate(`
-    <div class="title">Login Verification</div>
-    <p class="text">Hello ${name}, your login OTP:</p>
-    <div class="otp">${otp}</div>
-    <p class="text">If not you, secure your account immediately.</p>
+    <div style="${titleStyle}">Login Verification</div>
+    <p style="${textStyle}">Hello ${name}, your login OTP:</p>
+    <div style="${otpStyle}">${otp}</div>
+    <p style="${textStyle}">If not you, secure your account immediately.</p>
   `);
 
 // Login Success
-const loginSuccessTemplate = (
-  name,
-  date,
-  location,
-  device,
-  resetLink
-) =>
+const loginSuccessTemplate = (name, date, location, device, resetLink) =>
   baseTemplate(`
-    <div class="title">Login Successful, ${name} ✅</div>
-    <p class="text">
+    <div style="${titleStyle}">Login Successful, ${name} ✅</div>
+
+    <p style="${textStyle}">
       Hi ${name}, you have successfully logged into your KikStart account.
     </p>
-    <p class="text">
-      If this was you, you can safely continue using our platform and explore all features 🚀
-    </p>
-    <p class="text">
+
+    <p style="${textStyle}">
       <strong>Login Details:</strong><br/>
       📅 Date: ${date}<br/>
       🌍 Location: ${location}<br/>
       📱 Device: ${device}
     </p>
-    <p class="text">
-      If this wasn't you, please secure your account immediately by resetting your password.
+
+    <p style="${textStyle}">
+      If this wasn't you, secure your account immediately.
     </p>
-    <a href="${resetLink}" class="btn">Secure My Account</a>
+
+    <a href="${resetLink}" style="${btnStyle}">
+      Secure My Account
+    </a>
   `);
-  
+
 // Forgot Password OTP
 const forgotPasswordOtpTemplate = (name, otp) =>
   baseTemplate(`
-    <div class="title">Password Reset OTP</div>
-    <p class="text">Hello ${name}, your OTP:</p>
-    <div class="otp">${otp}</div>
-    <p class="text">Expires soon. Keep secure.</p>
+    <div style="${titleStyle}">Password Reset OTP</div>
+    <p style="${textStyle}">Hello ${name}, your OTP:</p>
+    <div style="${otpStyle}">${otp}</div>
+    <p style="${textStyle}">Expires soon. Keep secure.</p>
   `);
 
 // Reset Password Link
 const resetPasswordTemplate = (name, link) =>
   baseTemplate(`
-    <div class="title">Reset Your Password</div>
-    <p class="text">Hi ${name}, click below:</p>
-    <a href="${link}" class="btn">Reset Password</a>
-    <p class="text">Link expires in 15 minutes.</p>
+    <div style="${titleStyle}">Reset Your Password</div>
+    <p style="${textStyle}">Hi ${name}, click below:</p>
+    <a href="${link}" style="${btnStyle}">Reset Password</a>
+    <p style="${textStyle}">Link expires in 15 minutes.</p>
   `);
 
 // Password Changed
 const passwordChangedTemplate = (name) =>
   baseTemplate(`
-    <div class="title">Password Changed Successfully</div>
-    <p class="text">Hi ${name}, your password was updated.</p>
-    <p class="text">If this wasn’t you, contact support immediately.</p>
-    <a href="mailto:support@kikstart.com" class="btn">Contact Support</a>
+    <div style="${titleStyle}">Password Changed Successfully</div>
+    <p style="${textStyle}">Hi ${name}, your password was updated.</p>
+    <p style="${textStyle}">
+      If this wasn’t you, contact support immediately.
+    </p>
+    <a href="mailto:support@kikstart.com" style="${btnStyle}">
+      Contact Support
+    </a>
   `);
+
 // Resend OTP
 const resendOtpTemplate = (name, otp) =>
   baseTemplate(`
-    <div class="title">OTP Resent Successfully 🔄</div>
-    <p class="text">
-      Hi ${name}, as requested, we have resent your One-Time Password (OTP).
+    <div style="${titleStyle}">OTP Resent Successfully 🔄</div>
+
+    <p style="${textStyle}">
+      Hi ${name}, we have resent your OTP.
     </p>
-    <div class="otp">${otp}</div>
-    <p class="text">
-      This OTP is valid for the next 10 minutes. Please use it to continue your verification process.
-    </p>
-    <p class="text">
-      If you did not request this, please ignore this email or secure your account immediately.
+
+    <div style="${otpStyle}">${otp}</div>
+
+    <p style="${textStyle}">
+      Valid for 10 minutes. Do not share.
     </p>
   `);
 
+
+// ================= EXPORT =================
 module.exports = {
   registerSuccessTemplate,
   registerOtpTemplate,

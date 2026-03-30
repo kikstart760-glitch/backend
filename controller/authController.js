@@ -10,7 +10,7 @@ const { applyOtpSecurity } = require('../utils/otpLimiter');
 const { checkOtpBlock } = require('../utils/otpGuard');
 const { sendEmail } = require('../utils/mail.helper');
 const { formatPhone } = require("../utils/phone");
-const { sendsms } = require('../utils/sms.helper');
+const { sendSMS } = require('../utils/sms.helper');
 const { otpSMS } = require("../templates/smsTemplate");
 const {
   registerSuccessTemplate,
@@ -42,7 +42,7 @@ exports.signUp = async (req, res, next) => {
     }
 
 
-    const formattedPhone = null;
+    let formattedPhone = null;
     if (phone) {
       formattedPhone = formatPhone(phone);
       if (!formattedPhone) {
@@ -78,7 +78,7 @@ exports.signUp = async (req, res, next) => {
     const salt = await bcrypt.genSalt(10)
     const hashpassword = await bcrypt.hash(password, salt);
     const otp = generateOtp();
-    await hashOtp(otp);
+    const hashedOtp = await hashOtp(otp);
 
 
     const userData = new user({
@@ -88,7 +88,7 @@ exports.signUp = async (req, res, next) => {
       location,
       passcode,
       password: hashpassword,
-      otp,
+      otp: hashedOtp,
       otpExpiry: Date.now() + 10 * 60 * 1000,
       otpRequestDate: new Date(),
       otpRequestCount: 1,
@@ -115,10 +115,10 @@ exports.signUp = async (req, res, next) => {
 
     const message = otpSMS({
       otp: otp,
-      type: "signup", // signup | login | reset
+      type: "signup", // signup | login | reset | resend
     });
 
-    await sendsms({
+    await sendSMS({
       to: formattedPhone,
       message,
     });
@@ -148,7 +148,7 @@ exports.verifySignupOTP = async (req, res, next) => {
       );
     }
 
-    const formattedPhone = null;
+    let formattedPhone = null;
     if (phone) {
       formattedPhone = formatPhone(phone);
       if (!formattedPhone) {
@@ -189,26 +189,37 @@ exports.verifySignupOTP = async (req, res, next) => {
       );
     }
 
-    const isOtpValid = await compareOtp(otp, checkexist.otp);
+    const cleanOtp = otp.trim();
+
+    if (!checkexist.otp) {
+      return res.status(400).json({
+        status: "fail",
+        message: "OTP not found. Please request again.",
+      });
+    }
+
+    const isOtpValid = await compareOtp(cleanOtp, checkexist.otp);
+
     if (!isOtpValid) {
       checkexist.otpAttempts += 1;
+
       if (checkexist.otpAttempts >= 5) {
-        checkexist.otpBlockedUntil = Date.now() + 30 * 60 * 1000; // Block for 30 minutes
-        checkexist.otpAttempts = 0; // Reset attempts after blocking
+        checkexist.otpBlockedUntil = Date.now() + 30 * 60 * 1000;
+        checkexist.otpAttempts = 0;
       }
+
       await checkexist.save();
-      return next(
-        res.status(401).json({
-          status: "fail",
-          message: "Invalid OTP provided or wrong OTP entered multiple times. Please try again later."
-        })
-      );
+
+      return res.status(401).json({
+        status: "fail",
+        message: "Invalid OTP. Please try again.",
+      });
     }
 
     checkexist.isverified = true;
     checkexist.otp = null;
     checkexist.otpExpiry = null;
-    checkexist.deleteAt = undefined;
+    checkexist.deleteAt = null;
     checkexist.otpRequestCount = 0;
     checkexist.otpCooldown = null;
     checkexist.otpAttempts = 0;
@@ -259,7 +270,7 @@ exports.login = async (req, res, next) => {
       );
     }
 
-    const formattedPhone = null;
+    let formattedPhone = null;
     if (phone) {
       formattedPhone = formatPhone(phone);
       if (!formattedPhone) {
@@ -311,8 +322,9 @@ exports.login = async (req, res, next) => {
     }
 
     const otp = generateOtp();
-    await hashOtp(otp);
-    checkexist.otp = otp;
+    const hashedOtp = await hashOtp(otp);
+  
+    checkexist.otp = hashedOtp;
     checkexist.otpExpiry = Date.now() + 10 * 60 * 1000;
     await checkexist.save();
 
@@ -321,7 +333,7 @@ exports.login = async (req, res, next) => {
 
     try {
       await sendEmail({
-        to: email,
+        to: checkexist.email,
         subject: "KikStart Login OTP - Verify Your Identity 🔐",
         html: loginOtpTemplate(checkexist.name, otp)
       });
@@ -332,11 +344,11 @@ exports.login = async (req, res, next) => {
 
     const message = otpSMS({
       otp: otp,
-      type: "login", // signup | login | reset
+      type: "login", // signup | login | reset | resend
     });
 
-    await sendsms({
-      to: formattedPhone,
+    await sendSMS({
+      to: checkexist.phone,
       message,
     });
 
@@ -367,7 +379,7 @@ exports.verifyLoginOTP = async (req, res, next) => {
       );
     }
 
-    const formattedPhone = null;
+    let formattedPhone = null;
     if (phone) {
       formattedPhone = formatPhone(phone);
       if (!formattedPhone) {
@@ -383,7 +395,7 @@ exports.verifyLoginOTP = async (req, res, next) => {
       return next(
         res.status(404).json({
           status: "fail",
-          message: "User dose not exist with this email or phone number"
+          message: "User does not exist with this email or phone number"
         })
       );
     }
@@ -485,7 +497,7 @@ exports.forgetPassword = async (req, res, next) => {
       );
     }
 
-    const formattedPhone = null;
+    let formattedPhone = null;
     if (phone) {
       formattedPhone = formatPhone(phone);
       if (!formattedPhone) {
@@ -518,8 +530,9 @@ exports.forgetPassword = async (req, res, next) => {
     }
 
     const otp = generateOtp();
-    await hashOtp(otp);
-    checkexist.otp = otp;
+    const hashedOtp = await hashOtp(otp);
+
+    checkexist.otp = hashedOtp;
     checkexist.otpExpiry = Date.now() + 5 * 60 * 1000;
     await checkexist.save();
 
@@ -535,11 +548,11 @@ exports.forgetPassword = async (req, res, next) => {
 
     const message = otpSMS({
       otp: otp,
-      type: "reset", // signup | login | reset
+      type: "reset", // signup | login | reset | resend
     });
 
-    await sendsms({
-      to: formattedPhone,
+    await sendSMS({
+      to: checkexist.phone,
       message,
     });
 
@@ -574,7 +587,7 @@ exports.verifyOtp = async (req, res, next) => {
       );
     }
 
-    const formattedPhone = null;
+    let formattedPhone = null;
     if (phone) {
       formattedPhone = formatPhone(phone);
       if (!formattedPhone) {
@@ -684,7 +697,7 @@ exports.resetPassword = async (req, res, next) => {
       );
     } 
 
-    const formattedPhone = null;
+    let formattedPhone = null;
     if (phone) {
       formattedPhone = formatPhone(phone);
       if (!formattedPhone) {
@@ -763,7 +776,7 @@ exports.resendOtp = async (req, res, next) => {
       );
     }
 
-    const formattedPhone = null;
+    let formattedPhone = null;
     if (phone) {
       formattedPhone = formatPhone(phone);
       if (!formattedPhone) {
@@ -797,8 +810,9 @@ exports.resendOtp = async (req, res, next) => {
     }
 
     const otp = generateOtp();
-    await hashOtp(otp);
-    checkexist.otp = otp;
+    const hashedOtp = await hashOtp(otp);
+    
+    checkexist.otp = hashedOtp;
     checkexist.otpExpiry = Date.now() + 5 * 60 * 1000;
     await checkexist.save();
 
@@ -818,8 +832,8 @@ exports.resendOtp = async (req, res, next) => {
       type: "resend", // signup | login | reset | resend
     });
 
-    await sendsms({
-      to: formattedPhone,
+    await sendSMS({
+      to: checkexist.phone,
       message,
     });
 

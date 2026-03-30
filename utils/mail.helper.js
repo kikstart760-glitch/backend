@@ -7,8 +7,8 @@ const transporter = nodemailer.createTransport({
   port: 587,
   secure: false,
   auth: {
-    user: process.env.MY_EMAIL,
-    pass: process.env.MY_PASSWORD,
+    user: process.env.EMAIL_USERNAME,
+    pass: process.env.EMAIL_PASSWORD,
   },
 });
 
@@ -16,14 +16,14 @@ const transporter = nodemailer.createTransport({
 const sendEmail = async ({ to, subject, html }) => {
   try {
     const info = await transporter.sendMail({
-      from: `"KikStart" <${process.env.MY_EMAIL}>`,
+      from: `"KikStart" <${process.env.EMAIL_USERNAME}>`,
       to,
       subject,
       html,
       attachments: [
         {
           filename: "logo.png",
-          path: path.join(__dirname, "../assets/logo.png"),
+          path: path.join(__dirname, "../utils/assets/logo.png"),
           cid: "logo",
         },
       ],
