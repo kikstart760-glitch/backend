@@ -20,12 +20,12 @@ const middleware = (req, res, next) => {
 
 }
 
-const accessToken = (userdata) => {
+const generateAccessToken = (userdata) => {
     return jwt.sign(userdata, process.env.JWT_ACCESS_SECRET, { expiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '15m' });
 }
 
-const refreshToken = (userdata) => {
+const generateRefreshToken = (userdata) => {
     return jwt.sign(userdata, process.env.JWT_REFRESH_SECRET, { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d' });
 }
 
-module.exports = { middleware, accessToken, refreshToken };
+module.exports = { middleware, generateAccessToken, generateRefreshToken };

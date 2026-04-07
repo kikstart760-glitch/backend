@@ -1,5 +1,5 @@
 const user = require('../models/authModel');
-const {accessToken,refreshToken} = require('../Middleware/Middleware');
+const { generateAccessToken, generateRefreshToken } = require('../Middleware/Middleware');
 const bcrypt = require('bcryptjs')
 const { 
   generateOtp,
@@ -453,18 +453,18 @@ exports.verifyLoginOTP = async (req, res, next) => {
     const payload = {
       _id: checkexist._id
     }
-    const token = accessToken(payload);
+    const accessToken = generateAccessToken(payload);
     const refreshPayload = {
       _id: checkexist._id
     }
-    const refresh = refreshToken(refreshPayload);
+    const refreshToken = generateRefreshToken(refreshPayload);
 
 
     res.status(200).json({
       status: "success",
       message: "OTP verified successfully",
-      token,
-      refresh,
+      accessToken,
+      refreshToken,
       data: checkexist,
     });
   } catch (err) {
