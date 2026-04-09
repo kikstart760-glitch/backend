@@ -18,5 +18,12 @@ router.post("/verify-otp", authController.verifyOtp);
 // Password reset route
 router.post("/reset-password", authController.resetPassword);
 
+// Token refresh route
+router.post("/refresh-token", authController.refreshToken);
+
+// Logout route
+router.post("/logout", authController.logout);
+router.post("/logout-all", authController.logoutAll);
+
 
 module.exports = router;

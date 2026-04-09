@@ -1,4 +1,6 @@
 const user = require('../models/authModel');
+const Session = require('../models/sessionModel');
+const jwt = require('jsonwebtoken');
 const { generateAccessToken, generateRefreshToken } = require('../Middleware/Middleware');
 const bcrypt = require('bcryptjs')
 const { 
@@ -432,6 +434,8 @@ exports.verifyLoginOTP = async (req, res, next) => {
     const ip = getIP(req);
     const location = await getLocation(ip);
 
+    console.log (device, ip, location)
+
 
     try {
       await sendEmail({
@@ -451,20 +455,39 @@ exports.verifyLoginOTP = async (req, res, next) => {
 
 
     const payload = {
-      _id: checkexist._id
+      _id: checkexist._id , 
+      role: checkexist.role,
     }
     const accessToken = generateAccessToken(payload);
     const refreshPayload = {
-      _id: checkexist._id
+      _id: checkexist._id,
+      role: checkexist.role
     }
     const refreshToken = generateRefreshToken(refreshPayload);
 
+    // ✅ Create session with role
+    await Session.create({
+      userId: checkexist._id,
+      role: checkexist.role,
+      refreshToken,
+      device,
+      ip,
+      location,
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+    });
+
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: false, // true in production
+      sameSite: "strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000
+    });
 
     res.status(200).json({
       status: "success",
       message: "OTP verified successfully",
       accessToken,
-      refreshToken,
+      role: checkexist.role,
       data: checkexist,
     });
   } catch (err) {
@@ -587,7 +610,7 @@ exports.verifyOtp = async (req, res, next) => {
       return next(
         res.status(404).json({
           status: "fail",
-          message: "User dose not exist"
+          message: "User does not exist"
         })
       );
     }
@@ -716,6 +739,11 @@ exports.resetPassword = async (req, res, next) => {
     const hashpassword = await bcrypt.hash(password, salt);
     const changePassword = await checkexist.updateOne({ password: hashpassword });
 
+    await Session.updateMany(
+      { userId: checkexist._id },
+      { isValid: false }
+    );
+
     try {
       await sendEmail({
         to: email || checkexist.email,
@@ -821,6 +849,153 @@ exports.resendOtp = async (req, res, next) => {
     });
   } catch (err) {
     res.status(400).json({
+      status: "error",
+      message: err.message
+    });
+  }
+};
+
+
+exports.refreshSession = async (req, res) => {
+  try {
+    const token = req.cookies.refreshToken;
+
+    if (!token) {
+      return res.status(401).json({
+        message: "No session"
+      });
+    }
+
+    // ✅ Verify refresh token
+    const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
+
+    // ✅ Find session in DB
+    const session = await Session.findOne({
+      refreshToken: token,
+      isValid: true
+    });
+
+    // 🔐 Detect token reuse attack
+    if (session.refreshToken !== token) {
+      await Session.updateMany(
+        { userId: decoded._id },
+        { isValid: false }
+      );
+
+      return res.status(403).json({
+        message: "Session compromised. Please login again."
+      });
+    }
+
+    // ✅ Check DB expiry
+    if (session.expiresAt < new Date()) {
+      return res.status(403).json({
+        message: "Session expired"
+      });
+    }
+
+    // 🔁 ROTATE TOKENS (IMPORTANT 🔥)
+    const newAccessToken = generateAccessToken({
+      _id: decoded._id,
+      role: decoded.role
+    });
+
+    const newRefreshToken = generateRefreshToken({
+      _id: decoded._id,
+      role: decoded.role
+    });
+
+    // ✅ UPDATE SESSION
+    session.refreshToken = newRefreshToken;
+    session.expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    session.isValid = true;
+    await session.save();
+
+    // 🍪 SET NEW COOKIE
+    res.cookie("refreshToken", newRefreshToken, {
+      httpOnly: true,
+      secure: false, // true in production
+      sameSite: "Strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000
+    });
+
+    res.status(200).json({
+      accessToken: newAccessToken,
+      role: decoded.role
+    });
+
+  } catch (err) {
+    res.status(403).json({
+      message: "Session expired or invalid"
+    });
+  }
+};
+
+
+exports.logout = async (req, res) => {
+  try {
+    const token = req.cookies?.refreshToken;
+
+    // If no token → already logged out
+    if (!token) {
+      return res.status(200).json({
+        status: "success",
+        message: "Already logged out"
+      });
+    }
+
+    // Invalidate this session
+    await Session.findOneAndUpdate(
+      { refreshToken: token },
+      { isValid: false }
+    );
+
+    // Clear cookie
+    res.clearCookie("refreshToken", {
+      httpOnly: true,
+      secure: false, // ✅ true in production (HTTPS)
+      sameSite: "Strict"
+    });
+
+    return res.status(200).json({
+      status: "success",
+      message: "Logged out successfully"
+    });
+
+  } catch (err) {
+    return res.status(500).json({
+      status: "error",
+      message: err.message
+    });
+  }
+};
+
+
+
+exports.logoutAll = async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    // Invalidate all sessions of this user
+    await Session.updateMany(
+      { userId },
+      { isValid: false }
+    );
+
+    // Clear cookie (current device)
+    res.clearCookie("refreshToken", {
+      httpOnly: true,
+      secure: false, // ✅ true in production
+      sameSite: "Strict"
+    });
+
+    return res.status(200).json({
+      status: "success",
+      message: "Logged out from all devices"
+    });
+
+  } catch (err) {
+    return res.status(500).json({
       status: "error",
       message: err.message
     });
