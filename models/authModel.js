@@ -23,9 +23,9 @@ const authSchema = new mongoose.Schema(
         type: String,
         required: [true, "Please provide your location"],       
     },
-    passcode : {
+    pincode : {
         type: String,
-        required: [true, "Please provide your passcode"],
+        required: [true, "Please provide your pincode"],
     },
     password: {
         type: String,

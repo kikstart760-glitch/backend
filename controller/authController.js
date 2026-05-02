@@ -33,8 +33,8 @@ const {
 
 exports.signUp = async (req, res, next) => {
   try {
-    const { name, email, phone, location, passcode, password } = req.body;
-    if (!name || !email || !phone || !location || !passcode || !password) {
+    const { name, email, phone, location, pincode, password } = req.body;
+    if (!name || !email || !phone || !location || !pincode || !password) {
       return next(
         res.status(400).json({
           status: "fail",
@@ -88,7 +88,7 @@ exports.signUp = async (req, res, next) => {
       email,
       phone: formattedPhone,
       location,
-      passcode,
+      pincode,
       password: hashpassword,
       otp: hashedOtp,
       otpExpiry: Date.now() + 10 * 60 * 1000,
