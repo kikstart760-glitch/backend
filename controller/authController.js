@@ -57,14 +57,56 @@ exports.signUp = async (req, res, next) => {
 
     
     const checkexist = await user.findOne({ $or: [{ email }, { phone: formattedPhone }] });
-    if (checkexist) {
+    if (checkexist && checkexist.isverified) {
       return next(
         res.status(409).json({
           status: "fail",
-          message: "User already exist with this email or phone number"
+          message: "User already exist and verified. Please login to your account.",
+          redirectToOtp: true
         })
       );
     }
+
+    if (checkexist && !checkexist.isverified) {
+
+      const otp = generateOtp();
+      const hashedOtp = await hashOtp(otp);
+
+      checkexist.otp = hashedOtp;
+      checkexist.otpExpiry = Date.now() + 10 * 60 * 1000;
+      checkexist.otpRequestDate = new Date();
+      checkexist.otpRequestCount = 1;
+      checkexist.otpCooldown = Date.now() + 60 * 1000;
+      await checkexist.save();
+
+      return next(
+        res.status(200).json({
+          status: "success",
+          message: "User already exist but not verified. OTP resent for verification process.",
+        })
+      );
+    }
+
+    try {
+      await sendEmail({
+        to: email,
+        subject: "Welcome to KikStart! Verify Your Account",
+        html: registerOtpTemplate(name, otp)
+      });
+    } catch (err) {
+      console.log("Email failed:", err.message);
+    }
+
+    const message = otpSMS({
+      otp: otp,
+      type: "signup", // signup | login | reset | resend
+    });
+
+    await sendSMS({
+      to: formattedPhone,
+      message,
+    });
+
 
     try {
       applyOtpSecurity(checkexist || { email, phone: formattedPhone });
@@ -285,7 +327,8 @@ exports.login = async (req, res, next) => {
       return next(
         res.status(403).json({
           status: "fail",
-          message: "Please verify your account first",
+          message: "Please verify your account first to login. OTP resent for verification process.",
+          redirectToOtp: true
         })
       );
     }
