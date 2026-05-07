@@ -56,22 +56,12 @@ exports.signUp = async (req, res, next) => {
     }
 
     
+    const otp = generateOtp();
+    const hashedOtp = await hashOtp(otp);
+
     const checkexist = await user.findOne({ $or: [{ email }, { phone: formattedPhone }] });
-    if (checkexist && checkexist.isverified) {
-      return next(
-        res.status(409).json({
-          status: "fail",
-          message: "User already exist and verified. Please login to your account.",
-          redirectToOtp: true
-        })
-      );
-    }
-
     if (checkexist && !checkexist.isverified) {
-
-      const otp = generateOtp();
-      const hashedOtp = await hashOtp(otp);
-
+      
       checkexist.otp = hashedOtp;
       checkexist.otpExpiry = Date.now() + 10 * 60 * 1000;
       checkexist.otpRequestDate = new Date();
@@ -79,37 +69,45 @@ exports.signUp = async (req, res, next) => {
       checkexist.otpCooldown = Date.now() + 60 * 1000;
       await checkexist.save();
 
+      try {
+        await sendEmail({
+          to: email,
+          subject: "Welcome to EscapeTravel ! Verify Your Account",
+          html: registerOtpTemplate(checkexist.name, otp)
+        });
+      } catch (err) {
+        console.log("Email failed:", err.message);
+      }
+
+      const message = otpSMS({
+        otp: otp,
+        type: "signup", // signup | login | reset | resend
+      });
+
+      await sendSMS({
+        to: formattedPhone,
+        message,
+      });
+      
       return next(
         res.status(200).json({
           status: "success",
           message: "User already exist but not verified. OTP resent for verification process.",
+          redirectToOtp: true
+        })
+      );
+    }
+    else if (checkexist && checkexist.isverified) {
+      return next(
+        res.status(409).json({
+          status: "fail",
+          message: "User already exist and verified. Please login to your account.",
         })
       );
     }
 
     try {
-      await sendEmail({
-        to: email,
-        subject: "Welcome to KikStart! Verify Your Account",
-        html: registerOtpTemplate(name, otp)
-      });
-    } catch (err) {
-      console.log("Email failed:", err.message);
-    }
-
-    const message = otpSMS({
-      otp: otp,
-      type: "signup", // signup | login | reset | resend
-    });
-
-    await sendSMS({
-      to: formattedPhone,
-      message,
-    });
-
-
-    try {
-      applyOtpSecurity(checkexist || { email, phone: formattedPhone });
+      applyOtpSecurity({ email, phone: formattedPhone });
     } catch (err) {
       return next(
         res.status(429).json({
@@ -121,9 +119,6 @@ exports.signUp = async (req, res, next) => {
 
     const salt = await bcrypt.genSalt(10)
     const hashpassword = await bcrypt.hash(password, salt);
-    const otp = generateOtp();
-    const hashedOtp = await hashOtp(otp);
-
 
     const userData = new user({
       name,
@@ -143,21 +138,21 @@ exports.signUp = async (req, res, next) => {
     try {
       await sendEmail({
         to: email,
-        subject: "Welcome to KikStart! Verify Your Account",
+        subject: "Welcome to EscapeTravel ! Verify Your Account",
         html: registerOtpTemplate(name, otp)
       });
     } catch (err) {
       console.log("Email failed:", err.message);
     }
 
-    const message = otpSMS({
+    const newmessage = otpSMS({
       otp: otp,
       type: "signup", // signup | login | reset | resend
     });
 
     await sendSMS({
       to: formattedPhone,
-      message,
+      message: newmessage,
     });
 
     res.status(201).json({
@@ -267,7 +262,7 @@ exports.verifySignupOTP = async (req, res, next) => {
     try {
       await sendEmail({
         to: email || checkexist.email,
-        subject: "Welcome to KikStart - Registration Successful 🎉",
+        subject: "Welcome to EscapeTravel - Registration Successful 🎉",
         html: registerSuccessTemplate(checkexist.name)
       });
     } catch (err) {
@@ -323,10 +318,42 @@ exports.login = async (req, res, next) => {
       );
     }
 
+    const otp = generateOtp();
+    const hashedOtp = await hashOtp(otp);
+
     if (!checkexist.isverified) {
+      
+      checkexist.otp = hashedOtp;
+      checkexist.otpExpiry = Date.now() + 10 * 60 * 1000;
+      checkexist.otpRequestDate = new Date();
+      checkexist.otpRequestCount = 1;
+      checkexist.otpCooldown = Date.now() + 60 * 1000;
+      await checkexist.save();
+
+      
+      try {
+        await sendEmail({
+          to: email || checkexist.email,
+          subject: "Welcome to EscapeTravel ! Verify Your Account",
+          html: registerOtpTemplate(checkexist.name, otp)
+        });
+      } catch (err) {
+        console.log("Email failed:", err.message);
+      }
+
+      const message = otpSMS({
+        otp: otp,
+        type: "signup", // signup | login | reset | resend
+      });
+
+      await sendSMS({
+        to: formattedPhone || checkexist.phone,
+        message,
+      });
+
       return next(
-        res.status(403).json({
-          status: "fail",
+        res.status(200).json({
+          status: "success",
           message: "Please verify your account first to login. OTP resent for verification process.",
           redirectToOtp: true
         })
@@ -353,9 +380,6 @@ exports.login = async (req, res, next) => {
         })
       );
     }
-
-    const otp = generateOtp();
-    const hashedOtp = await hashOtp(otp);
   
     checkexist.otp = hashedOtp;
     checkexist.otpExpiry = Date.now() + 10 * 60 * 1000;
@@ -364,21 +388,21 @@ exports.login = async (req, res, next) => {
     try {
       await sendEmail({
         to: checkexist.email,
-        subject: "KikStart Login OTP - Verify Your Identity 🔐",
+        subject: "EscapeTravel Login OTP - Verify Your Identity 🔐",
         html: loginOtpTemplate(checkexist.name, otp)
       });
     } catch (err) {
       console.log("Email failed:", err.message);
     }
 
-    const message = otpSMS({
+    const otpMessage = otpSMS({
       otp: otp,
       type: "login", // signup | login | reset | resend
     });
 
     await sendSMS({
       to: checkexist.phone,
-      message,
+      message: otpMessage,
     });
 
     res.status(200).json({
@@ -484,7 +508,7 @@ exports.verifyLoginOTP = async (req, res, next) => {
     try {
       await sendEmail({
         to: email || checkexist.email,
-        subject: "KikStart Login Successful - New Device Alert ✅",
+        subject: "EscapeTravel Login Successful - New Device Alert ✅",
         html: loginSuccessTemplate(
           checkexist.name,
           new Date().toLocaleString(),
@@ -596,7 +620,7 @@ exports.forgetPassword = async (req, res, next) => {
     try {
       await sendEmail({
         to: email || checkexist.email,
-        subject: "KikStart Password Reset OTP - Verify Your Identity 🔐",
+        subject: "EscapeTravel Password Reset OTP - Verify Your Identity 🔐",
         html: forgotPasswordOtpTemplate(checkexist.name, otp)
       });
     } catch (err) {
@@ -708,7 +732,7 @@ exports.verifyOtp = async (req, res, next) => {
     try {
       await sendEmail({
         to: email || checkexist.email,
-        subject: "Reset Your KikStart Password - OTP Verified ✅",
+        subject: "Reset Your EscapeTravel Password - OTP Verified ✅",
         html: resetPasswordTemplate(checkexist.name, "#")
       });
     } catch (err) {
@@ -802,7 +826,7 @@ exports.resetPassword = async (req, res, next) => {
     try {
       await sendEmail({
         to: email || checkexist.email,
-        subject: "Confirmation of Password Change - Your KikStart Account 🔐",
+        subject: "Confirmation of Password Change - Your EscapeTravel Account 🔐",
         html: passwordChangedTemplate(checkexist.name)
       });
     } catch (err) {
@@ -881,7 +905,7 @@ exports.resendOtp = async (req, res, next) => {
     try {
       await sendEmail({
         to: email || checkexist.email,
-        subject: "KikStart OTP Resend - Verify Your Identity 🔐",
+        subject: "EscapeTravel OTP Resend - Verify Your Identity 🔐",
         html: resendOtpTemplate(checkexist.name, otp)
       });
     } catch (err) {
