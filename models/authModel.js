@@ -59,6 +59,12 @@ const authSchema = new mongoose.Schema(
         type: Boolean,
         default: false,
     },
+    resetPasswordToken: {
+        type: String,
+    },
+    resetPasswordTokenExpiry: {
+        type: Date,
+    },
     otpRequestDate: {
         type: Date,
     },

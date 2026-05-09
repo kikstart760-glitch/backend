@@ -1,5 +1,6 @@
 const user = require('../models/authModel');
 const Session = require('../models/sessionModel');
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const { generateAccessToken, generateRefreshToken } = require('../Middleware/Middleware');
 const bcrypt = require('bcryptjs')
@@ -720,6 +721,13 @@ exports.verifyOtp = async (req, res, next) => {
       );
     }
 
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    const hashedResetToken = crypto.createHash("sha256").update(resetToken).digest("hex");
+
+    console.log("Reset Token:", resetToken);
+    console.log("Hashed Reset Token:", hashedResetToken);
+
+
     checkexist.otp = null;
     checkexist.otpExpiry = null;
     checkexist.otpRequestCount = 0;
@@ -727,13 +735,19 @@ exports.verifyOtp = async (req, res, next) => {
     checkexist.otpAttempts = 0;
     checkexist.otpBlockedUntil = null;
     checkexist.isOtpVerified = true;
+    checkexist.resetPasswordToken = hashedResetToken;
+    checkexist.resetPasswordTokenExpiry = Date.now() + 15 * 60 * 1000; // 15 minutes expiry for reset token
     await checkexist.save();
+
+    console.log("User after OTP verification and reset token generation:", checkexist.resetPasswordToken, checkexist.resetPasswordTokenExpiry);
+
+    const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
 
     try {
       await sendEmail({
         to: email || checkexist.email,
         subject: "Reset Your EscapeTravel Password - OTP Verified ✅",
-        html: resetPasswordTemplate(checkexist.name, "#")
+        html: resetPasswordTemplate(checkexist.name, resetUrl)
       });
     } catch (err) {
       console.log("Email failed:", err.message);
@@ -743,6 +757,7 @@ exports.verifyOtp = async (req, res, next) => {
       status: "success",
       message: "OTP verified successfully",
       data: checkexist,
+      resetToken: resetToken, // Send the reset token to the frontend for redirection
     });
   } catch (err) {
     res.status(400).json({
@@ -755,12 +770,22 @@ exports.verifyOtp = async (req, res, next) => {
 
 exports.resetPassword = async (req, res, next) => {
   try {
-    const { email, phone, password, confirmPassword } = req.body;
-    if ((!email && !phone) || !password || !confirmPassword) {
+    const { token } = req.params;
+    if (!token) {
       return next(
         res.status(400).json({
           status: "fail",
-          message: "Please provide email or phone and password and confirm password!!!",
+          message: "Reset token is required in the URL parameters",
+        })
+      );
+    }
+
+    const { password, confirmPassword } = req.body;
+    if ( !password || !confirmPassword) {
+      return next(
+        res.status(400).json({
+          status: "fail",
+          message: "Please provide password and confirm password!!!",
         })
       );
     }
@@ -774,28 +799,41 @@ exports.resetPassword = async (req, res, next) => {
       );
     } 
 
-    let formattedPhone = null;
-    if (phone) {
-      formattedPhone = formatPhone(phone);
-      if (!formattedPhone) {
-        return res.status(400).json({
-          status: "fail",
-          message: "Invalid phone number format. Please provide a valid phone number."
-        });
-      }
-    }
+    console.log("Incoming Token:", req.params.token);
 
-    const checkexist = await user.findOne({ $or: [{ email }, { phone: formattedPhone }] });
+    const hashToken = crypto
+      .createHash("sha256")
+      .update(req.params.token)
+      .digest("hex");
+
+    console.log("Generated Hash:", hashToken);
+
+    const checkexist = await user.findOne({
+      resetPasswordToken: hashToken,
+      resetPasswordTokenExpiry: { $gt: Date.now() }
+    });
+
+    console.log("User Found:", checkexist);
+
     if (!checkexist) {
       return next(
-        res.status(404).json({
+        res.status(400).json({
           status: "fail",
-          message: "User does not exist with this email or phone number",
+          message: "Invalid or expired reset password token",
         })
       );
     }
 
-    if (!checkexist.isOtpVerified) {
+    if (!checkexist.resetPasswordToken || !checkexist.resetPasswordTokenExpiry) {
+      return next(
+        res.status(400).json({
+          status: "fail",
+          message: "Invalid or expired reset password token",
+        })
+      );
+    }
+
+    if (checkexist.isOtpVerified !== true) {
       return res.status(403).json({
         status: "fail",
         message: "OTP verification required before resetting password",
@@ -815,6 +853,8 @@ exports.resetPassword = async (req, res, next) => {
     const salt = await bcrypt.genSalt(10)
     const hashpassword = await bcrypt.hash(password, salt);
     const changePassword = await checkexist.updateOne({ password: hashpassword });
+    checkexist.resetPasswordToken = null;
+    checkexist.resetPasswordTokenExpiry = null;
     checkexist.isOtpVerified = false;
     await checkexist.save();
 
@@ -825,7 +865,7 @@ exports.resetPassword = async (req, res, next) => {
 
     try {
       await sendEmail({
-        to: email || checkexist.email,
+        to: checkexist.email,
         subject: "Confirmation of Password Change - Your EscapeTravel Account 🔐",
         html: passwordChangedTemplate(checkexist.name)
       });

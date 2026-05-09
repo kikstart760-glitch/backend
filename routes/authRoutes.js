@@ -16,7 +16,7 @@ router.post("/login-otp", authController.verifyLoginOTP);
 router.post("/verify-otp", authController.verifyOtp);
 
 // Password reset route
-router.post("/reset-password", authController.resetPassword);
+router.post("/reset-password/:token", authController.resetPassword);
 
 // Token refresh route
 router.post("/refresh-token", authController.refreshSession);
