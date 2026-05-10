@@ -274,6 +274,12 @@ exports.verifySignupOTP = async (req, res, next) => {
       status: "success",
       message: "OTP verified successfully",
       data: checkexist,
+      user: {
+        _id: checkexist._id,
+        email: checkexist.email,
+        name: checkexist.name,
+        role: checkexist.role
+      }
     });
   } catch (err) {
     res.status(400).json({
@@ -558,6 +564,12 @@ exports.verifyLoginOTP = async (req, res, next) => {
       accessToken,
       role: checkexist.role,
       data: checkexist,
+      user: {
+        _id: checkexist._id,
+        email: checkexist.email,
+        name: checkexist.name,
+        role: checkexist.role
+      }
     });
   } catch (err) {
     res.status(400).json({
@@ -758,6 +770,12 @@ exports.verifyOtp = async (req, res, next) => {
       message: "OTP verified successfully",
       data: checkexist,
       resetToken: resetToken, // Send the reset token to the frontend for redirection
+      user: {
+        _id: checkexist._id,
+        email: checkexist.email,
+        name: checkexist.name,
+        role: checkexist.role
+      }
     });
   } catch (err) {
     res.status(400).json({
