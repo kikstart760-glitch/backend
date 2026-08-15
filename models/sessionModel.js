@@ -11,10 +11,10 @@ const sessionSchema = new mongoose.Schema(
         type: String,
         enum: ["user", "admin"]
     },
-    refreshToken: String,
-    device: String,
-    ip: String,
-    location: String,
+        refreshToken: String,
+        device: String,
+        ip: String,
+        location: String,
     isValid: {
         type: Boolean,
         default: true

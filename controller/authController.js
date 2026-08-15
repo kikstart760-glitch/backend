@@ -1,7 +1,10 @@
 const user = require('../models/authModel');
+const SocialAuth = require('../models/socialModel');
 const Session = require('../models/sessionModel');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
+const {google} = require("googleapis");
+const  OAuth2Client  = require('../utils/google');
 const { generateAccessToken, generateRefreshToken } = require('../Middleware/Middleware');
 const bcrypt = require('bcryptjs')
 const { 
@@ -1139,6 +1142,125 @@ exports.logoutAll = async (req, res) => {
 
   } catch (err) {
     return res.status(500).json({
+      status: "error",
+      message: err.message
+    });
+  }
+};
+
+
+
+exports.googleLogin = async (req, res, next) => {
+  try {
+
+    const authUrl = OAuth2Client.generateAuthUrl({
+      access_type: 'offline',
+      scope: ['profile', 'email', 'openid'],
+      prompt: 'select_account'
+    });
+
+    res.redirect(authUrl);
+
+  } catch (err) {
+    console.error("Google Login Error:", err);
+    res.status(400).json({
+      status: "error",
+      message: err.message
+    });
+  }
+};
+
+
+
+exports.googleCallback = async (req, res, next) => {
+  try {
+    const { code } = req.query;
+    if (!code) {
+      return res.status(400).json({
+        status: "fail",
+        message: "Authorization code is missing in the callback request."
+      });
+    }
+    
+    const { tokens } = await OAuth2Client.getToken(code);
+    OAuth2Client.setCredentials(tokens);
+
+    const oauth2 = google.oauth2({
+      auth: OAuth2Client,
+      version: 'v2'
+    });
+
+    const { data } = await oauth2.userinfo.get();
+
+    const {  id:googleId ,email, name, picture } = data;
+
+    if (!email) {
+      return res.status(400).json({
+        status: "fail",
+        message: "Email not found in Google user info."
+      });
+    }
+
+    const existingUser = await user.findOne({ email });
+    if (!existingUser) {
+      const newUser = new user({
+        name,
+        email,
+        isverified: true,
+        googleId,
+        profileImage: picture,
+        role: "user", // Default role for new users
+        authProvider: "google" // Indicate that this user signed up via Google  
+      });
+      await newUser.save();
+    } else {
+      if (!existingUser.googleId) {
+        existingUser.googleId = googleId;
+        existingUser.profileImage = picture;
+        existingUser.authProvider = "google";
+        existingUser.isverified = true; // Mark as verified since Google provides verified email
+        existingUser.role = existingUser.role || "user"; // Ensure role is set
+        await existingUser.save();
+      }
+
+      const device = getDevice(req);
+      const ip = getIP(req);
+      const location = await getLocation(ip);
+
+      const payload = {
+        _id: existingUser._id,
+        role: existingUser.role,
+        googleId: existingUser.googleId
+      };
+
+      const accessToken = generateAccessToken(payload);
+
+      const refreshToken = generateRefreshToken(payload);
+
+      await Session.create({
+        userId: existingUser._id,
+        role: existingUser.role,
+        refreshToken,
+        device,
+        ip,
+        location,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+      });
+
+      res.cookie("refreshToken", refreshToken, {
+        httpOnly: true,
+        secure: false, // true in production
+        sameSite: "strict",
+        maxAge: 7 * 24 * 60 * 60 * 1000
+      });
+
+      res.redirect(`${process.env.FRONTEND_URL}/google-login-success`);
+
+    }
+
+  } catch (err) {
+    console.error("Google Callback Error:", err);
+    res.status(400).json({
       status: "error",
       message: err.message
     });
