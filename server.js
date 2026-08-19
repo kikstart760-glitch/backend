@@ -8,7 +8,7 @@ require('dns').setDefaultResultOrder('ipv4first');
 dotenv.config({ path: "./config.env" });
 
 const app = require("./app");
-const port = process.env.PORT || 6000; // fallback if PORT not set
+const port = process.env.PORT || 3000; // fallback if PORT not set
 
 const DB = process.env.DATABASE;
 mongoose.connect(DB)

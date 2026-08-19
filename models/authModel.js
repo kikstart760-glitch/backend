@@ -11,9 +11,16 @@ const authSchema = new mongoose.Schema(
         required: [true, "Please provide your email"],          
         unique: true,
     },
+    authProvider: {
+      type: String,
+      enum: ["manual", "google", "facebook", "github"],
+      default: "manual"
+    },
     phone : {
         type: String,
-        required: [true, "Please provide your phone number"],   
+        required: [function() {
+            return this.authProvider === "manual";
+        }, "Please provide your phone number"],
         unique: true,
     },
     formattedPhone : {
@@ -21,15 +28,29 @@ const authSchema = new mongoose.Schema(
     },
     location: {
         type: String,
-        required: [true, "Please provide your location"],       
+        required: [function() {
+            return this.authProvider === "manual";
+        }, "Please provide your location"],       
     },
     pincode : {
         type: String,
-        required: [true, "Please provide your pincode"],
+        required: [function() {
+            return this.authProvider === "manual";
+        }, "Please provide your pincode"],
     },
     password: {
         type: String,
-        required: [true, "Please provide your password"],
+        required: [function() {
+            return this.authProvider === "manual";
+        }, "Please provide your password"],
+    },
+    googleId: {
+      type: String,
+      unique: true,
+      sparse: true,
+    },
+    profileImage: {
+      type: String,
     },
     otp : {
         type: String,

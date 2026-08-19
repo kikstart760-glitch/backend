@@ -8,6 +8,7 @@ const authRoutes = require("./routes/authRoutes");
 
 app.use(cors({
   origin: '*',
+  credentials: true,
   methods: ['GET', 'PUT', 'POST', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']  // Add 'Authorization' to allowed headers
 }));

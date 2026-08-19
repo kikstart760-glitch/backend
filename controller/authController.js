@@ -1,10 +1,8 @@
 const user = require('../models/authModel');
-const SocialAuth = require('../models/socialModel');
 const Session = require('../models/sessionModel');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const {google} = require("googleapis");
-const  OAuth2Client  = require('../utils/google');
 const { generateAccessToken, generateRefreshToken } = require('../Middleware/Middleware');
 const bcrypt = require('bcryptjs')
 const { 
@@ -1150,119 +1148,210 @@ exports.logoutAll = async (req, res) => {
 
 
 
-exports.googleLogin = async (req, res, next) => {
+exports.googleLogin = async (req, res) => {
   try {
+    const { accessToken } = req.body;
 
-    const authUrl = OAuth2Client.generateAuthUrl({
-      access_type: 'offline',
-      scope: ['profile', 'email', 'openid'],
-      prompt: 'select_account'
-    });
+    // --------------------------------
+    // 1. Check Google access token
+    // --------------------------------
 
-    res.redirect(authUrl);
-
-  } catch (err) {
-    console.error("Google Login Error:", err);
-    res.status(400).json({
-      status: "error",
-      message: err.message
-    });
-  }
-};
-
-
-
-exports.googleCallback = async (req, res, next) => {
-  try {
-    const { code } = req.query;
-    if (!code) {
+    if (!accessToken) {
       return res.status(400).json({
         status: "fail",
-        message: "Authorization code is missing in the callback request."
+        message: "Google access token is required",
       });
     }
-    
-    const { tokens } = await OAuth2Client.getToken(code);
-    OAuth2Client.setCredentials(tokens);
+
+    // --------------------------------
+    // 2. Get Google user information
+    // --------------------------------
+
+    const oauth2Client = new google.auth.OAuth2();
+
+    oauth2Client.setCredentials({
+      access_token: accessToken,
+    });
 
     const oauth2 = google.oauth2({
-      auth: OAuth2Client,
-      version: 'v2'
+      auth: oauth2Client,
+      version: "v2",
     });
 
     const { data } = await oauth2.userinfo.get();
 
-    const {  id:googleId ,email, name, picture } = data;
+    console.log("Google user information:", data);
+
+    const { id: googleId, email, name, picture } = data;
+
+    // --------------------------------
+    // 3. Validate Google email
+    // --------------------------------
 
     if (!email) {
       return res.status(400).json({
         status: "fail",
-        message: "Email not found in Google user info."
+        message: "Email not found in Google account",
       });
     }
 
-    const existingUser = await user.findOne({ email });
+    // --------------------------------
+    // 4. Find existing user
+    // --------------------------------
+
+    let existingUser = await user.findOne({
+      email,
+    });
+
+    // --------------------------------
+    // 5. Create new Google user
+    // --------------------------------
+
     if (!existingUser) {
-      const newUser = new user({
-        name,
+      existingUser = await user.create({
+        name: name || "Google User",
+
         email,
-        isverified: true,
+
         googleId,
+
         profileImage: picture,
-        role: "user", // Default role for new users
-        authProvider: "google" // Indicate that this user signed up via Google  
+
+        authProvider: "google",
+
+        isverified: true,
+
+        role: "user",
       });
-      await newUser.save();
-    } else {
+    }
+
+    // --------------------------------
+    // 6. Existing user
+    // --------------------------------
+    else {
+      // Connect Google account
       if (!existingUser.googleId) {
         existingUser.googleId = googleId;
-        existingUser.profileImage = picture;
-        existingUser.authProvider = "google";
-        existingUser.isverified = true; // Mark as verified since Google provides verified email
-        existingUser.role = existingUser.role || "user"; // Ensure role is set
-        await existingUser.save();
       }
 
-      const device = getDevice(req);
-      const ip = getIP(req);
-      const location = await getLocation(ip);
+      if (name) {
+        existingUser.name = name;
+      }
 
-      const payload = {
-        _id: existingUser._id,
-        role: existingUser.role,
-        googleId: existingUser.googleId
-      };
+      if (picture) {
+        existingUser.profileImage = picture;
+      }
 
-      const accessToken = generateAccessToken(payload);
+      existingUser.isverified = true;
 
-      const refreshToken = generateRefreshToken(payload);
+      /*
+       * IMPORTANT
+       *
+       * If this is an existing manual user,
+       * DON'T change authProvider to google.
+       *
+       * Otherwise you convert the manual account
+       * into a Google account.
+       */
 
-      await Session.create({
-        userId: existingUser._id,
-        role: existingUser.role,
-        refreshToken,
-        device,
-        ip,
-        location,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-      });
+      if (existingUser.authProvider !== "manual") {
+        existingUser.authProvider = "google";
+      }
 
-      res.cookie("refreshToken", refreshToken, {
-        httpOnly: true,
-        secure: false, // true in production
-        sameSite: "strict",
-        maxAge: 7 * 24 * 60 * 60 * 1000
-      });
-
-      res.redirect(`${process.env.FRONTEND_URL}/google-login-success`);
-
+      await existingUser.save();
     }
 
+    // --------------------------------
+    // 7. Device information
+    // --------------------------------
+
+    const device = getDevice(req);
+
+    const ip = getIP(req);
+
+    const location = await getLocation(ip);
+
+    // --------------------------------
+    // 8. Generate JWT access token
+    // --------------------------------
+
+    const payload = {
+      _id: existingUser._id,
+      role: existingUser.role,
+    };
+
+    const JWTaccessToken = generateAccessToken(payload);
+
+    // --------------------------------
+    // 9. Generate refresh token
+    // --------------------------------
+
+    const JWTrefreshToken = generateRefreshToken(payload);
+
+    // --------------------------------
+    // 10. Create session
+    // --------------------------------
+
+    await Session.create({
+      userId: existingUser._id,
+
+      role: existingUser.role,
+
+      refreshToken: JWTrefreshToken,
+
+      device,
+
+      ip,
+
+      location,
+
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    });
+
+    // --------------------------------
+    // 11. Set refresh token cookie
+    // --------------------------------
+
+    res.cookie("refreshToken", JWTrefreshToken, {
+      httpOnly: true,
+
+      secure: false, // true in production
+
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    // --------------------------------
+    // 12. Send response
+    // --------------------------------
+
+    return res.status(200).json({
+      status: "success",
+
+      message: "Google login successful",
+
+      accessToken: JWTaccessToken,
+
+      role: existingUser.role,
+
+      user: {
+        _id: existingUser._id,
+
+        email: existingUser.email,
+
+        name: existingUser.name,
+
+        role: existingUser.role,
+
+        profileImage: existingUser.profileImage,
+      },
+    });
   } catch (err) {
-    console.error("Google Callback Error:", err);
-    res.status(400).json({
+    console.error("Google login error:", err);
+
+    return res.status(500).json({
       status: "error",
-      message: err.message
+
+      message: err.message,
     });
   }
 };

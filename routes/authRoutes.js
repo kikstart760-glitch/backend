@@ -11,9 +11,7 @@ router.post("/forgot-password", otpLimiter, authController.forgetPassword);
 router.post("/resend-otp", otpLimiter, authController.resendOtp);
 
 // Google OAuth routes
-router.get("/google", authController.googleLogin);
-router.get("/google/callback", authController.googleCallback);
-
+router.post("/google", authController.googleLogin);
 
 // OTP verification routes
 router.post("/signup-otp", authController.verifySignupOTP);
