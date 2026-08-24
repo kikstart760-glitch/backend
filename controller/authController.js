@@ -244,7 +244,7 @@ exports.verifySignupOTP = async (req, res, next) => {
 
       await checkexist.save();
 
-      return res.status(401).json({
+      return res.status(400).json({
         status: "fail",
         message: "Invalid OTP. Please try again.",
       });
@@ -490,7 +490,7 @@ exports.verifyLoginOTP = async (req, res, next) => {
       }
       await checkexist.save();
       return next(
-        res.status(401).json({
+        res.status(400).json({
           status: "fail",
           message: "Invalid OTP provided or wrong OTP entered multiple times. Please try again later."
         })
@@ -727,7 +727,7 @@ exports.verifyOtp = async (req, res, next) => {
       }
       await checkexist.save();
       return next(
-        res.status(401).json({
+        res.status(400).json({
           status: "fail",
           message: "Invalid OTP provided or wrong OTP entered multiple times. Please try again later."
         })
@@ -1221,6 +1221,8 @@ exports.googleLogin = async (req, res) => {
 
         isverified: true,
 
+        deleteAt: null,
+
         role: "user",
       });
     }
@@ -1243,6 +1245,8 @@ exports.googleLogin = async (req, res) => {
       }
 
       existingUser.isverified = true;
+
+      existingUser.deleteAt = null;
 
       /*
        * IMPORTANT
